@@ -8,10 +8,31 @@ module OneLogin
     include REXML
     class Logoutrequest
 
-      attr_reader :uuid # Can be obtained if neccessary
+      ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion"
+      PROTOCOL  = "urn:oasis:names:tc:SAML:2.0:protocol"
 
-      def initialize
+      attr_reader :uuid # Can be obtained if neccessary
+      attr_reader :document
+      attr_reader :request
+
+      def initialize request
         @uuid = "_" + UUID.new.generate
+        @request = decode_raw_response(request)
+        @document = XMLSecurity::SignedDocument.new(@request)
+      end
+
+      def id
+        @id ||= begin
+          document.root.attributes['ID']
+        end
+      end
+
+      def issuer
+        @issuer ||= begin
+          node = REXML::XPath.first(document, "/p:LogoutRequest/a:Issuer", { "p" => PROTOCOL, "a" => ASSERTION })
+          node ||= REXML::XPath.first(document, "/p:LogoutRequest/a:Assertion/a:Issuer", { "p" => PROTOCOL, "a" => ASSERTION })
+          node.nil? ? nil : node.text
+        end
       end
 
       def create(settings, params={})
@@ -76,6 +97,29 @@ module OneLogin
           class_ref.text = settings.authn_context
         end
         request_doc
+      end
+
+      private
+
+      def decode(encoded)
+        Base64.decode64(encoded)
+      end
+
+      def inflate(deflated)
+        zlib = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+        zlib.inflate(deflated)
+      end
+
+      def decode_raw_response(response)
+        if response =~ /^</
+          return response
+        elsif (decoded  = decode(response)) =~ /^</
+          return decoded
+        elsif (inflated = inflate(decoded)) =~ /^</
+          return inflated
+        end
+
+        raise "Couldn't decode SAMLResponse"
       end
     end
   end

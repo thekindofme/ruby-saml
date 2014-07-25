@@ -34,6 +34,59 @@ module OneLogin
         @document = XMLSecurity::SignedDocument.new(response)
       end
 
+      # Create a LogoutResponse to to the IdP's LogoutRequest
+      #  (For IdP initiated SLO)
+      def self.create( settings, options = {} )
+        opt = { in_response_to: nil,
+                status: "urn:oasis:names:tc:SAML:2.0:status:Success",
+                extra_parameters: nil }.merge(options)
+        return nil if opt[:in_response_to].nil?
+
+        new_response = REXML::Document.new
+        new_response.context[:attribute_quote] = :quote
+        uuid = "_" + UUID.new.generate
+        time = Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        root = new_response.add_element "samlp:LogoutResponse", { "xmlns:samlp" => PROTOCOL, "xmlns:saml" => ASSERTION }
+        root.attributes['ID'] = uuid
+        root.attributes['IssueInstant'] = time
+        root.attributes['Destination'] = "#{opt[:destination]}"
+        root.attributes['Version'] = "2.0"
+        root.attributes['InResponseTo'] = opt[:in_response_to]
+
+        if opt[:status]
+          status = root.add_element "samlp:Status"
+          status.add_element "samlp:StatusCode", {
+              "Value" => opt[:status]
+          }
+        end
+        if settings && settings.issuer
+          issuer = root.add_element "saml:Issuer", {
+              "xmlns:saml" => "urn:oasis:names:tc:SAML:2.0:assertion"
+          }
+          issuer.text = settings.issuer
+        end
+        #meta = Metadata.new( settings )
+        Logging.debug "Created LogoutResponse:\n#{new_response}"
+        #return meta.create_slo_response( new_response.to_s, opt[:extra_parameters] )
+
+        #root.attributes['Destination'] = action
+
+        text = ""
+        new_response.write(text, 1)
+        text
+      end
+
+      # # function to return the created request as an XML document
+      # def to_xml
+      #   text = ""
+      #   @response.write(text, 1)
+      #   return text
+      # end
+      #
+      # def to_s
+      #   @response.to_s
+      # end
+
       def validate!
         validate(false)
       end
