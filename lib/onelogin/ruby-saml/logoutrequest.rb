@@ -13,12 +13,10 @@ module OneLogin
 
       attr_reader :uuid # Can be obtained if neccessary
       attr_reader :document
-      attr_reader :request
 
-      def initialize request
+      def initialize request=nil
         @uuid = "_" + UUID.new.generate
-        @request = decode_raw_response(request)
-        @document = XMLSecurity::SignedDocument.new(@request)
+        @document = XMLSecurity::SignedDocument.new(decode_raw_response(request)) if request
       end
 
       def id
