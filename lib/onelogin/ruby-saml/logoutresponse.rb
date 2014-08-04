@@ -36,7 +36,7 @@ module OneLogin
 
       # Create a LogoutResponse to to the IdP's LogoutRequest
       #  (For IdP initiated SLO)
-      def self.create( settings, options = {} )
+      def self.create( settings, params={}, options = {} )
         opt = { in_response_to: nil,
                 status: "urn:oasis:names:tc:SAML:2.0:status:Success",
                 extra_parameters: nil }.merge(options)
@@ -73,7 +73,20 @@ module OneLogin
 
         text = ""
         new_response.write(text, 1)
-        text
+
+        deflated_request  = Zlib::Deflate.deflate(text, 9)[2..-5]
+        base64_request    = Base64.encode64(deflated_request)
+        encoded_request   = CGI.escape(base64_request)
+
+        target_url = options[:destination]
+        params_prefix     = (target_url =~ /\?/) ? '&' : '?'
+        request_params    = "#{params_prefix}SAMLRequest=#{encoded_request}"
+
+        params.each_pair do |key, value|
+          request_params << "&#{key}=#{CGI.escape(value.to_s)}"
+        end
+
+        target_url + request_params
       end
 
       # # function to return the created request as an XML document
