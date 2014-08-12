@@ -74,19 +74,19 @@ module OneLogin
         text = ""
         new_response.write(text, 1)
 
-        deflated_request  = Zlib::Deflate.deflate(text, 9)[2..-5]
-        base64_request    = Base64.encode64(deflated_request)
-        encoded_request   = CGI.escape(base64_request)
+        deflated_response  = Zlib::Deflate.deflate(text, 9)[2..-5]
+        base64_response    = Base64.encode64(deflated_response)
+        encoded_response   = CGI.escape(base64_response)
 
         target_url = options[:destination]
         params_prefix     = (target_url =~ /\?/) ? '&' : '?'
-        request_params    = "#{params_prefix}SAMLRequest=#{encoded_request}"
+        response_params    = "#{params_prefix}SAMLResponse=#{encoded_response}"
 
         params.each_pair do |key, value|
-          request_params << "&#{key}=#{CGI.escape(value.to_s)}"
+          response_params << "&#{key}=#{CGI.escape(value.to_s)}"
         end
 
-        target_url + request_params
+        target_url + response_params
       end
 
       # # function to return the created request as an XML document
